@@ -1,4 +1,4 @@
-name: One-time inert transport fixture
+name: Retire completed inert transport fixture
 on:
   push:
     paths:
@@ -6,21 +6,21 @@ on:
 permissions:
   contents: write
 jobs:
-  fixture:
+  cleanup:
     if: github.repository == 'nghiaquoc/NGHIATOOL-releases'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Publish inert prerelease fixture only
+      - name: Remove only verified test prerelease
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
-          if gh release view v0.0.2 >/dev/null 2>&1; then
-            echo 'Fixture already exists; refusing to overwrite'
-            exit 1
-          fi
-          printf '%s\n' 'NGHIATOOL TRANSPORT FIXTURE 20261125' 'INERT TEXT ONLY - NOT A WINDOWS EXECUTABLE - DO NOT RUN' > NGHIA-Tool-Setup.exe
-          gh release create v0.0.2 NGHIA-Tool-Setup.exe --target "$GITHUB_SHA" --prerelease --title 'Transport fixture v0.0.2 (NOT SOFTWARE)' --notes 'Inert text file with protocol-required asset name. Not an installer. Never execute. No production signature or stable feed. Used only for isolated HTTPS transport verification.'
+          gh release view v0.0.2 --json isPrerelease,isDraft,name,tagName,assets > release.json
+          jq -e '.isPrerelease == true and .isDraft == false and .name == "Transport fixture v0.0.2 (NOT SOFTWARE)" and .tagName == "v0.0.2" and (.assets | length == 1) and .assets[0].name == "NGHIA-Tool-Setup.exe"' release.json
+          gh release download v0.0.2 --pattern NGHIA-Tool-Setup.exe
+          echo '0311d5bf5a25ea067013b2f25cacf13f2da83023fa6e3e54ecf9e18e6edc1850  NGHIA-Tool-Setup.exe' | sha256sum -c -
+          gh release delete v0.0.2 --yes
+          echo 'Test prerelease removed; historical commit and tag retained. No stable release modified.'
